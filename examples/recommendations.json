@@ -1,0 +1,72 @@
+[
+  {
+    "sample": true,
+    "symbol": "EXAMPLE",
+    "action": "BUY",
+    "thesis": "FORMAT DEMONSTRATION ONLY. A growth company with rising guidance and a favourable market trend; no real security is recommended.",
+    "created_at": "2026-10-20T12:00:00Z",
+    "quote_at": "2026-10-20T12:00:00Z",
+    "expires_at": "2026-10-20T12:15:00Z",
+    "entry": 100,
+    "stop": 95,
+    "target": 110,
+    "units": 10,
+    "broker_verified": false,
+    "evidence": {
+      "revenue_growth_yoy": {
+        "summary": "Illustration: year-over-year revenue growth of 18%, 21%, 24% and 26% across four quarters. Organic growth and acquisition effects require verification.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "guidance_change": {
+        "summary": "Illustration: same-year revenue guidance midpoint rises from $1.0bn to $1.1bn (+10%). Confirm original dated releases and whether this exceeds consensus.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "profitability_cash_debt": {
+        "summary": "Illustration: positive free cash flow, stable margins and manageable debt. Actual cash runway and refinancing dates must be supplied.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "valuation": {
+        "summary": "Illustration: compare forward sales and earnings multiples against sector peers and growth. No real valuation has been checked.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "market_sector_trend": {
+        "summary": "Illustration: market and sector above rising 50-day averages; stock outperforming its sector. These values are not live.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "cpi_rate_sensitivity": {
+        "summary": "Illustration: medium rate sensitivity. Latest core/headline CPI surprise, Treasury reaction and uncertainty must be included.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "price_performance": {
+        "summary": "Illustration: report 1-day, 5-day, 1-month and 3-month returns, volatility, liquidity and distance from recent highs.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "catalysts_risks": {
+        "summary": "Illustration: explain next earnings date, thesis failure conditions, dilution, competition and downside scenario. Do not present targets as guaranteed.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      },
+      "broker_costs_availability": {
+        "summary": "Not verified. Include Capital.com instrument, spread, overnight financing, minimum size and short availability before acceptance.",
+        "source": "Synthetic layout example",
+        "published_at": "2026-10-20T12:00:00Z",
+        "verified": false
+      }
+    }
+  }
+]
