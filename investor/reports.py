@@ -39,7 +39,7 @@ def pdf(cards, destination, review_links=None):
         story += [Paragraph('INVESTMENT DECISION BRIEF', styles['Title']), p('RESEARCH ONLY - NO LIVE ORDERS'), Spacer(1, 12),
                   Paragraph(html.escape(card['symbol']+' | '+card['action']), styles['Heading1']), p(card['thesis']), Spacer(1, 12)]
         rows = [[p('Entry'), p('Stop'), p('Target'), p('Units'), p('Planned stop risk')],
-                [p(card.get('entry', 'N/A')), p(card.get('stop', 'N/A')), p(card.get('target', 'N/A')), p(card.get('units', 'N/A')), p('$%.2f' % (abs(card.get('entry', 0)-card.get('stop', 0))*card.get('units', 0)))]]
+                [p(f"${card['entry']:,.2f}" if card.get('entry') else 'N/A'), p(f"${card['stop']:,.2f}" if card.get('stop') else 'N/A'), p(f"${card['target']:,.2f}" if card.get('target') else 'N/A'), p(f"{card.get('units', 0):g}"), p('$%.2f' % (abs(card.get('entry', 0)-card.get('stop', 0))*card.get('units', 0)))]]
         table = Table(rows, colWidths=[1*inch, 1*inch, 1*inch, 1*inch, 2.2*inch])
         table.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#dceaf0')), ('VALIGN',(0,0),(-1,-1),'TOP'), ('BOTTOMPADDING',(0,0),(-1,-1),8)]))
         story += [table, Spacer(1, 8), p('Created: '+card['created_at']+' | Expires: '+card['expires_at']),

@@ -7,16 +7,21 @@ The objective is not a guaranteed loss limit.
 
 ## Current status
 
-Implemented: Alpha Vantage snapshot ingestion; structured evidence checks; PDF
-reports; SMTP delivery code; one-use Accept / Not accepted review pages; and a
-small daily-bar reference backtester with market-trend filtering, next-session
-entries, gap-aware stops, financing and progressive drawdown controls.
+Implemented: Alpha Vantage snapshot/options ingestion; deterministic long/short
+selection; point-in-time input filtering; call/put gamma concentrations; gamma-flip
+scenarios; per-expiry max pain; trend, volume, volatility and core-CPI filters;
+explanatory PDF cards; research approvals; and a daily-bar backtester with an
+additive four-variant comparison runner.
 
 **No live broker execution, scheduled jobs or deployed email service exists.**
-Accept records `ACCEPTED_RESEARCH_ONLY`. It cannot place an order. Sample data is
-synthetic and cannot be accepted. No historical investment performance is claimed.
-The model currently consumes externally prepared signals, not automatically
-extracted fundamental/CPI signals. It is a foundation, not a finished investor.
+The selection engine consumes audited normalized historical evidence; automatic
+collection/verification of guidance, CPI consensus and broker histories is not yet
+implemented. Latest financial snapshots cannot substitute for those histories.
+
+All generated strategy cards are research-only and cannot be approved for trading.
+The generic approval inbox records intent only; it has no broker adapter. No real
+historical investment performance is claimed. See [strategy details](docs/STRATEGY.md)
+for exact rules, assumptions, test results and remaining limitations.
 
 ## Run locally
 
@@ -91,18 +96,37 @@ No short borrow or broker cost is claimed to be historically verified.
 
 The simulator lacks dividends, intraday event ordering, historical broker
 universe/availability, precise CPI release handling, realistic approval delays
-and tested fundamental signal generation. Missing held bars fail rather than
+and automatic historical evidence ingestion. Missing held bars fail rather than
 silently dropping a delisted company. Final positions close with costs.
 Latest Alpha Vantage statements are saved with retrieval timestamps and explicitly
 marked not verified for historical availability. Never backfill their current
 values into earlier decisions without reconciling original releases/restatements.
 
+## Strategy commands
+
+```bash
+# Fully synthetic, repeatable software demonstration (not investment results).
+python examples/build_fixture.py
+python -m investor select output/fixture/bundles.json --output output/selection
+python -m investor compare output/fixture/bundles.json output/fixture/bars.csv
+python -m investor report output/selection/cards.json
+
+# Real provider access; set ALPHAVANTAGE_API_KEY securely first.
+python -m investor fetch-options MSFT 2025-10-20
+# Multiplier is explicit; verify standard contract deliverables before using 100.
+python -m investor options private/options/MSFT/2025-10-20.json --spot 100 --date 2025-10-20 --multiplier 100
+```
+
+The spot value above is a placeholder; replace it with the actual same-date raw
+underlying close. Never use today's quote for an old chain. Commands operate on
+local files; no report is emailed unless --send is explicitly supplied.
+
 ## Next implementation milestones
 
 1. Audit Alpha Vantage entitlements and sample coverage; obtain point-in-time
    financial/guidance history, CPI actual/consensus and Capital.com instrument costs.
-2. Build source-grounded guidance extraction and deterministic growth/short screens.
-3. Add event-aware CPI overlay, richer execution simulation, benchmarks and
+2. Build source-grounded guidance extraction and feed audited real records into the implemented growth/short rules.
+3. Expand the core-CPI overlay to headline/components, add intraday execution, benchmarks and
    chronological walk-forward evaluation; keep an untouched test period.
 4. Deploy authenticated HTTPS approvals and configure SMTP. Schedule by US market
    sessions and daylight saving, with pre-market PDFs and event updates.

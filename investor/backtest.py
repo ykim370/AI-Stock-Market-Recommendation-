@@ -7,8 +7,11 @@ model dividends; do not use its results as validated investment performance.
 """
 import csv
 import math
+from math import isfinite
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime, time
+from zoneinfo import ZoneInfo
+from .recommendations import utc
 
 
 def run(bars_path, signals_path, holding_days=5, cost_bps=10, annual_financing=.10):
@@ -28,11 +31,15 @@ def run(bars_path, signals_path, holding_days=5, cost_bps=10, annual_financing=.
     signals = defaultdict(list)
     with open(signals_path) as f:
         for row in csv.DictReader(f):
-            if row['verified'].lower() != 'true' or row['known_at'] > row['date']:
+            known=row['known_at']
+            cutoff=datetime.combine(date.fromisoformat(row['date']),time(23,59,59),ZoneInfo('America/New_York'))
+            future=utc(known)>cutoff if 'T' in known else known>row['date']
+            if row['verified'].lower() != 'true' or future:
                 raise ValueError('Unverified or future signal')
             if row['side'] not in ('BUY','SHORT') or row['date'] not in days:
                 raise ValueError('Invalid signal')
             signals[row['date']].append(row)
+    synthetic=any(s.get('sample','false')=='true' for rows in signals.values() for s in rows)
     cash = peak = 10000.
     positions, pending, curve, trades = {}, [], [], []
     halted = False
@@ -44,9 +51,9 @@ def run(bars_path, signals_path, holding_days=5, cost_bps=10, annual_financing=.
         nonlocal cash
         pos = positions.pop(symbol)
         pnl = pos['side']*pos['units']*(price-pos['entry'])
-        exit_fee = pos['units']*price*fee
+        exit_fee = pos['units']*price*pos['fee']
         cash += pnl-exit_fee
-        trades.append(dict(symbol=symbol, opened=pos['date'], closed=day, reason=reason,
+        trades.append(dict(symbol=symbol, opened=pos['date'], closed=day, reason=reason,entry_price=pos['entry'],exit_price=price,units=pos['units'],
                            pnl_after_costs=pnl-exit_fee-pos['entry_fee']-pos['financing']))
 
     for day, market in sorted(days.items()):
@@ -57,7 +64,7 @@ def run(bars_path, signals_path, holding_days=5, cost_bps=10, annual_financing=.
                 raise ValueError('Missing held position bar: supply delisting/action treatment')
             pos = positions[symbol]
             elapsed = (date.fromisoformat(day)-date.fromisoformat(prev_date)).days
-            financing = pos['units']*pos['mark']*annual_financing/365*elapsed
+            financing = pos['units']*pos['mark']*pos['annual_financing']/365*elapsed
             cash -= financing
             pos['financing'] += financing
             pos['age'] += 1
@@ -70,19 +77,53 @@ def run(bars_path, signals_path, holding_days=5, cost_bps=10, annual_financing=.
             entry = market[symbol]['open']
             side = 1 if signal['side']=='BUY' else -1
             equity = cash + sum(p['side']*p['units']*(market[s]['open']-p['entry']) for s,p in positions.items())
-            risk = max(0,equity)*(.0025 if dd >= .08 else .005)
-            units = min(risk/(entry*.05), max(0,equity)*.15/entry)
+            risk_scale=float(signal.get('risk_multiplier',1))
+            entry_fee_rate=float(signal.get('cost_bps_per_side',cost_bps))/10000
+            financing_rate=float(signal.get('annual_financing_rate',annual_financing))
+            if not all(isfinite(x) and x>=0 for x in (entry_fee_rate,financing_rate)):
+                raise ValueError('Invalid signal costs')
+            stop=float(signal.get('stop',entry*(1-.05*side)))
+            target=float(signal['target']) if signal.get('target') else None
+            if not isfinite(risk_scale) or not 0<risk_scale<=1 or not isfinite(stop) or stop<=0:
+                raise ValueError('Invalid signal risk levels')
+            if (side==1 and stop>=entry) or (side==-1 and stop<=entry):
+                continue
+            if target is not None:
+                if not isfinite(target) or target<=0:
+                    raise ValueError('Invalid target')
+                if (side==1 and target<=entry) or (side==-1 and target>=entry):
+                    continue
+                cost=entry*(2*entry_fee_rate+financing_rate*10/365)
+                if (abs(target-entry)-cost)/(abs(entry-stop)+cost)<1.5:
+                    continue
+            risk = max(0,equity)*(.0025 if dd >= .08 else .005)*risk_scale
+            units = min(risk/(abs(entry-stop)+entry*(2*entry_fee_rate+financing_rate*10/365)), max(0,equity)*.15/entry)
+            if signal.get('max_units'):
+                approved_units=float(signal['max_units'])
+                if not isfinite(approved_units) or approved_units<=0:
+                    raise ValueError('Invalid proposed size')
+                units=min(units,approved_units)
+            if signal.get('size_increment'):
+                step=float(signal['size_increment']);minimum=float(signal['minimum_size'])
+                if not all(isfinite(x) and x>0 for x in (step,minimum)):
+                    raise ValueError('Invalid broker size increment')
+                units=math.floor(units/step)*step
+                if units<minimum:
+                    continue
             if units <= 0:
                 continue
-            entry_fee = units*entry*fee
+            entry_fee = units*entry*entry_fee_rate
             cash -= entry_fee
-            positions[symbol] = dict(entry=entry, units=units, side=side, stop=entry*(1-.05*side), age=0, date=day, mark=entry, financing=0.,entry_fee=entry_fee)
+            positions[symbol] = dict(entry=entry, units=units, side=side, stop=stop, target=target, age=0, date=day, mark=entry, financing=0.,entry_fee=entry_fee,fee=entry_fee_rate,annual_financing=financing_rate)
         for symbol in list(positions):
             pos, bar = positions[symbol], market[symbol]
             crossed = bar['low'] <= pos['stop'] if pos['side']==1 else bar['high'] >= pos['stop']
             if crossed:
                 fill = min(bar['open'],pos['stop']) if pos['side']==1 else max(bar['open'],pos['stop'])
                 close(symbol, fill, 'stop', day)
+            elif pos['target'] is not None and (bar['high']>=pos['target'] if pos['side']==1 else bar['low']<=pos['target']):
+                fill=max(bar['open'],pos['target']) if pos['side']==1 else min(bar['open'],pos['target'])
+                close(symbol,fill,'target',day)
             else:
                 pos['mark'] = bar['close']
         equity = cash+sum(p['side']*p['units']*(p['mark']-p['entry']) for p in positions.values())
@@ -103,10 +144,10 @@ def run(bars_path, signals_path, holding_days=5, cost_bps=10, annual_financing=.
         curve[-1]['equity'] = cash
         max_dd = max(max_dd,(peak-cash)/peak)
         curve[-1]['drawdown'] = (peak-cash)/peak
-    return dict(label='RESEARCH SIMULATION - NOT VALIDATED', initial_equity=10000, final_equity=cash,
+    return dict(label='SYNTHETIC SOFTWARE CHECK' if synthetic else 'RESEARCH SIMULATION - NOT VALIDATED', initial_equity=10000, final_equity=cash,
                 return_pct=(cash/10000-1)*100, maximum_drawdown_pct=max_dd*100,
                 halted=halted, trades=trades, equity_curve=curve,
-                limitations=['Daily bars; intraday order sequence approximated','Constant cost and financing assumptions',
+                limitations=['Daily bars; intraday order sequence approximated','Per-signal costs if supplied, otherwise constant cost and financing assumptions',
                               'No dividend, historical broker availability or CPI consensus integration',
-                              'Signals supplied externally; verified flag requires upstream audit',
+                              'Signal provenance requires upstream audit; scores are not probabilities',
                               'Approval delay not modeled; automatic signals are an upper-bound operational assumption'])
