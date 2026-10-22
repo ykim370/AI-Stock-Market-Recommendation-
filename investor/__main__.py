@@ -8,10 +8,11 @@ sub = parser.add_subparsers(dest='command',required=True)
 p = sub.add_parser('fetch'); p.add_argument('symbol')
 p = sub.add_parser('report'); p.add_argument('cards'); p.add_argument('--output',default='output/pdf/recommendations.pdf'); p.add_argument('--send',action='store_true')
 p = sub.add_parser('backtest'); p.add_argument('bars'); p.add_argument('signals'); p.add_argument('--output',default='output/backtest.json'); p.add_argument('--holding-days',type=int,default=5)
-p = sub.add_parser('select'); p.add_argument('bundles'); p.add_argument('--variant',choices=['baseline','options','confirmation','macro'],default='macro'); p.add_argument('--output',default='output/selection')
+p = sub.add_parser('select'); p.add_argument('bundles'); p.add_argument('--variant',choices=['baseline','options','confirmation','macro','institutional'],default='institutional'); p.add_argument('--output',default='output/selection')
 p = sub.add_parser('compare'); p.add_argument('bundles'); p.add_argument('bars'); p.add_argument('--output',default='output/comparison')
 p = sub.add_parser('options'); p.add_argument('chain'); p.add_argument('--spot',type=float,required=True); p.add_argument('--date',required=True); p.add_argument('--multiplier',type=float); p.add_argument('--output',default='output/options.json')
 p = sub.add_parser('fetch-options'); p.add_argument('symbol'); p.add_argument('date')
+p = sub.add_parser('validate'); p.add_argument('bundles'); p.add_argument('--output',default='output/validation')
 sub.add_parser('serve')
 args = parser.parse_args()
 if args.command == 'fetch':
@@ -39,6 +40,9 @@ elif args.command == 'backtest':
     path.write_text(json.dumps(result,indent=2))
     print({k:v for k,v in result.items() if k not in ('trades','equity_curve')})
 
+elif args.command == 'validate':
+    from .validation import save_audit
+    print(json.dumps(save_audit(json.loads(Path(args.bundles).read_text()),args.output),indent=2))
 elif args.command == 'select':
     from .pipeline import evaluate
     print(evaluate(json.loads(Path(args.bundles).read_text()),args.output,args.variant))

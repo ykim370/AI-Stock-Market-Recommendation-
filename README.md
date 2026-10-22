@@ -11,7 +11,9 @@ Implemented: Alpha Vantage snapshot/options ingestion; deterministic long/short
 selection; point-in-time input filtering; call/put gamma concentrations; gamma-flip
 scenarios; per-expiry max pain; trend, volume, volatility and core-CPI filters;
 explanatory PDF cards; research approvals; and a daily-bar backtester with an
-additive four-variant comparison runner.
+additive four-variant comparison runner. The institutional research variant adds
+pre-announcement expectations, 30/90-day estimate revisions, portfolio exposure
+and stress gates, and a reproducible input-audit report.
 
 **No live broker execution, scheduled jobs or deployed email service exists.**
 The selection engine consumes audited normalized historical evidence; automatic
@@ -107,7 +109,9 @@ values into earlier decisions without reconciling original releases/restatements
 ```bash
 # Fully synthetic, repeatable software demonstration (not investment results).
 python examples/build_fixture.py
-python -m investor select output/fixture/bundles.json --output output/selection
+python -m investor select output/fixture/bundles.json --variant macro --output output/selection
+python -m investor select output/fixture/institutional-bundle.json --output output/institutional
+python -m investor validate output/fixture/institutional-bundle.json
 python -m investor compare output/fixture/bundles.json output/fixture/bars.csv
 python -m investor report output/selection/cards.json
 
@@ -120,6 +124,10 @@ python -m investor options private/options/MSFT/2025-10-20.json --spot 100 --dat
 The spot value above is a placeholder; replace it with the actual same-date raw
 underlying close. Never use today's quote for an old chain. Commands operate on
 local files; no report is emailed unless --send is explicitly supplied.
+
+The `select` CLI defaults to the stricter `institutional` variant. Its additional
+input schema, assumptions and limitations are in [the institutional specification](docs/INSTITUTIONAL.md).
+The four-way `compare` remains unchanged; it does not test the new portfolio gates.
 
 ## Next implementation milestones
 

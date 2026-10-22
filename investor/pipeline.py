@@ -36,6 +36,14 @@ def card_from_decision(result, bundle):
         'catalysts_risks':ev('Next earnings: '+chosen('events').get('next_earnings_at','Unknown')+'. '+ '; '.join(result.get('warnings',[])),chosen('events')),
         'broker_costs_availability':ev(f"Round-trip spread/slippage estimate {chosen('broker').get('roundtrip_cost_bps','N/A')} bps; annual financing {chosen('broker').get('annual_financing_rate',0):.1%}; minimum size {chosen('broker').get('minimum_size','N/A')}; shortable {chosen('broker').get('shortable','N/A')}.",chosen('broker')),
         'options_positioning':ev(options_text,chosen('options'))}
+    if 'expectations' in metrics:
+        exp=metrics['expectations']
+        evidence['expectations']={'summary':f"Guidance versus pre-release consensus {exp['guidance_surprise']:+.1%}; "+', '.join(f'{k}: {v:+.1%}' for k,v in exp['revisions'].items())+'. '+exp['limitation'],
+            'source':'; '.join(sorted({r['source'] for r in exp['sources']})),
+            'published_at':max(exp['sources'],key=lambda r:utc(r['available_at']))['available_at'],'verified':True}
+    if 'portfolio' in metrics:
+        risk=metrics['portfolio']
+        evidence['portfolio_risk']=ev(f"After trade: gross {risk['gross_exposure']:.1%}, net {risk['net_exposure']:.1%}, beta exposure {risk['beta_exposure']:.1%}, stop risk {risk['stop_risk']:.1%}. Scenario P/L: "+', '.join(f'{k}: {v:.1%}' for k,v in risk['scenario_returns'].items())+'. '+risk['limitation'],bundle['portfolio'])
     return {'symbol':result['symbol'],'action':result.get('action','NO_TRADE') if result['decision']=='CANDIDATE' else 'NO_TRADE',
             'thesis':result['decision']+' | '+'; '.join(result['reasons']),
             'created_at':now,'quote_at':tech.get('available_at',now),'expires_at':result.get('expires_at',now),
@@ -49,13 +57,19 @@ def evaluate(bundles, directory, variant='macro'):
     if not isinstance(bundles,list) or not bundles:
         raise ValueError('Expected nonempty list of bundles')
     directory=Path(directory); directory.mkdir(parents=True,exist_ok=True)
+    from .validation import save_audit
+    save_audit(bundles,directory)
     decisions=[]; cards=[]; signals=[]; seen=set()
     for bundle in sorted(bundles,key=lambda b:(utc(b['as_of']),b['symbol'])):
         key=(bundle['symbol'],bundle['as_of'])
         if key in seen:
             raise ValueError('Duplicate decision snapshot')
         seen.add(key)
-        result=decide(bundle,variant)
+        if variant=='institutional':
+            from .institutional import institutional_decision
+            result=institutional_decision(bundle)
+        else:
+            result=decide(bundle,variant)
         decisions.append(result); cards.append(card_from_decision(result,bundle))
         if result['decision']=='CANDIDATE':
             signals.append({'date':result['metrics']['technicals']['last_date'],'symbol':result['symbol'],

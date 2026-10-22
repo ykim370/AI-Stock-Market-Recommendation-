@@ -40,10 +40,32 @@ def make_bundle(side='BUY', index=79):
         broker=[dict(**source,available_at=stamp(index),tradable=True,shortable=True,roundtrip_cost_bps=10,annual_financing_rate=.1,size_increment=1,minimum_size=1)])
 
 
+def make_institutional_bundle(side='BUY'):
+    b=make_bundle(side); now=datetime.fromisoformat(b['as_of'])
+    src={'source':'SYNTHETIC TEST FIXTURE','point_in_time_verified':True}
+    for g in b['guidance']:g['release_at']=g['available_at']
+    b['consensus']=[]
+    def row(metric,value,stamp):
+        return dict(**src,available_at=stamp,recorded_at=stamp,metric=metric,mean=value,
+                    fiscal_period='FY2025',currency='USD',basis='reported',analyst_count=5,provider='synthetic')
+    direction=1 if side=='BUY' else -1
+    for days,step in [(90,0),(30,1),(0,2)]:
+        stamp=(now-timedelta(days=days,hours=1)).isoformat()
+        for metric,base in [('revenue',500e6),('eps',2)]:
+            b['consensus'].append(row(metric,base*(1+direction*.03*step),stamp))
+    release=datetime.fromisoformat(b['guidance'][-1]['release_at'])
+    b['consensus'].append(row('revenue',510e6,(release-timedelta(hours=1)).isoformat()))
+    b['portfolio']=dict(**src,available_at=b['as_of'],equity_usd=10000,peak_equity_usd=10000,positions=[])
+    b['classification']=dict(**src,available_at=b['as_of'],sector='Technology',theme='Software',beta=1.2)
+    return b
+
+
+
 def generate(directory='output/fixture'):
     directory=Path(directory);directory.mkdir(parents=True,exist_ok=True)
     bundles=[make_bundle(index=i) for i in (64,69,74,79,84)]
     (directory/'bundles.json').write_text(json.dumps(bundles,indent=2))
+    (directory/'institutional-bundle.json').write_text(json.dumps([make_institutional_bundle()],indent=2))
     with (directory/'bars.csv').open('w') as f:
         writer=csv.DictWriter(f,fieldnames=['date','symbol','open','high','low','close'])
         writer.writeheader()
