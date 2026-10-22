@@ -45,3 +45,18 @@ class AlphaVantage:
                        'function': endpoint, 'data': data}
             (folder / f'{endpoint}_{stamp}.json').write_text(json.dumps(payload, indent=2))
         return str(folder)
+
+
+    def historical_options(self, symbol, date_value, directory='private/options'):
+        from datetime import date
+        date.fromisoformat(date_value)
+        if not symbol.replace('.', '').replace('-', '').isalnum():
+            raise ValueError('Invalid ticker')
+        data=self.fetch('HISTORICAL_OPTIONS',symbol=symbol.upper(),date=date_value)
+        if not isinstance(data.get('data'),list) or not data['data']:
+            raise RuntimeError('No historical options returned')
+        path=Path(directory)/symbol.upper()/f'{date_value}.json'
+        path.parent.mkdir(parents=True,exist_ok=True)
+        path.write_text(json.dumps({'data':data,'retrieved_at_utc':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),
+            'source':'Alpha Vantage HISTORICAL_OPTIONS','point_in_time_verified':False},indent=2))
+        return str(path)

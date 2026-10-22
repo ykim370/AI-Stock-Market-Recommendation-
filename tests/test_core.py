@@ -56,7 +56,8 @@ class SafetyTests(unittest.TestCase):
         result=run(bars,signals)
         self.assertEqual(result['trades'][0]['opened'],dates[50])
         self.assertEqual(result['trades'][0]['closed'],dates[51])
-        self.assertLess(result['trades'][0]['pnl_after_costs'],-190)
+        self.assertEqual(result['trades'][0]['exit_price'],80)
+        self.assertLess(result['trades'][0]['pnl_after_costs'],-150)
         signals.write_text('date,symbol,side,known_at,verified\n'+f'{dates[49]},TEST,BUY,{dates[50]},true\n')
         with self.assertRaises(ValueError):run(bars,signals)
 

@@ -15,6 +15,8 @@ def utc(value):
 def blockers(card, now=None):
     now = now or datetime.now(timezone.utc)
     errors = []
+    if card.get('research_only'):
+        errors.append('Research-only strategy output; not eligible for live approval')
     if card.get('sample', False):
         errors.append('Illustrative sample; not an investment recommendation')
     if card.get('action') not in ('BUY', 'SHORT', 'CLOSE_LONG', 'COVER_SHORT'):
